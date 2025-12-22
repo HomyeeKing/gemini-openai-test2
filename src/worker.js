@@ -969,7 +969,7 @@ var worker_default = {
         case pathname.endsWith("/chat/completions"):
           assert3(request.method === "POST");
           const reqBody = await request.json();
-          console.log(`Model ${reqBody.model} params`, reqBody);
+					console.log('request body is', reqBody)
           return handleCompletions(reqBody, apiKey).catch(errHandler);
         case pathname.endsWith("/embeddings"):
           assert3(request.method === "POST");
@@ -1100,7 +1100,7 @@ async function handleCompletions(req, apiKey) {
   }
   model = model || DEFAULT_MODEL;
   let body = await transformRequest(req) || {};
-  console.log('body11', body);
+
   const extra = req.extra_body?.google;
   if (extra) {
     if (extra.safety_settings) {
@@ -1126,12 +1126,15 @@ async function handleCompletions(req, apiKey) {
   if (req.stream) {
     url += "?alt=sse";
   }
+
   const response = await fetch(url, {
     method: "POST",
     headers: makeHeaders(apiKey, { "Content-Type": "application/json" }),
     body: JSON.stringify(body)
   });
   body = response.body;
+	console.log('model response is', JSON.stringify(response))
+
   if (response.ok) {
     let id = "chatcmpl-" + generateId();
     const shared = {};
@@ -1153,7 +1156,6 @@ async function handleCompletions(req, apiKey) {
     } else {
       body = await response.text();
       try {
-        console.log('111body', body)
         body = JSON.parse(body);
         if (!body.candidates) {
           throw new Error("Invalid completion object");
@@ -1165,6 +1167,7 @@ async function handleCompletions(req, apiKey) {
       body = processCompletionsResponse(body, model, id);
     }
   }
+
   return new Response(body, fixCors(response));
 }
 __name(handleCompletions, "handleCompletions");
@@ -1345,6 +1348,8 @@ var transformMsg = /* @__PURE__ */ __name(async ({ content }) => {
   for (const item of content) {
     switch (item.type) {
       case "text":
+			case "input_text":
+			case "output_text":
         parts.push({ text: item.text });
         break;
       case "image_url":
@@ -1414,11 +1419,12 @@ var transformMessages = /* @__PURE__ */ __name(async (messages) => {
 }, "transformMessages");
 var transformTools = /* @__PURE__ */ __name((req) => {
   let tools, tool_config;
-  if (req.tools) {
-    const funcs = req.tools.filter((tool) => tool.type === "function");
-    funcs.forEach(adjustSchema);
-    tools = [{ function_declarations: funcs.map((schema) => schema.function) }];
-  }
+  // if (req.tools) {
+  //   const funcs = req.tools.filter((tool) => tool.type === "function");
+	// console.log('funcs', funcs)
+  //   funcs.forEach(adjustSchema);
+  //   tools = [{ function_declarations: funcs.map((schema) => schema.function) }];
+  // }
   if (req.tool_choice) {
     const allowed_function_names = req.tool_choice?.type === "function" ? [req.tool_choice?.function?.name] : void 0;
     if (allowed_function_names || typeof req.tool_choice === "string") {
@@ -1433,7 +1439,7 @@ var transformTools = /* @__PURE__ */ __name((req) => {
   return { tools, tool_config };
 }, "transformTools");
 var transformRequest = /* @__PURE__ */ __name(async (req) => ({
-  ...await transformMessages(req.messages),
+  ...await transformMessages(req.messages ?? req.input),
   safetySettings,
   generationConfig: transformConfig(req),
   ...transformTools(req)

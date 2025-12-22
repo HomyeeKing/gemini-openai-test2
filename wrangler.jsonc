@@ -1,6 +1,6 @@
 {
   "name": "gemini-openai-test2",
-  "main": "src/worker.js",
+  "main": "src/worker-glm.js",
   "workers_dev": true,
   "preview_urls": true,
   "compatibility_date": "2024-09-23",
